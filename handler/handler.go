@@ -32,6 +32,9 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer file.Close()
 
+		// TODO：
+		// 这立的优化空间 Location可以改为路径 + 文件的sha1值
+		// 因为文件的sha1是不会变的
 		fileMeta := meta.FileMeta{
 			FileName: head.Filename,
 			Location: "D:/dir1/" + head.Filename,
