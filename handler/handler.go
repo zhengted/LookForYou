@@ -37,14 +37,10 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		// 因为文件的sha1是不会变的
 		fileMeta := meta.FileMeta{
 			FileName: head.Filename,
-			Location: "D:/dir1/" + head.Filename,
+			Location: "/home/ubuntu/FileStoreLoc/" + head.Filename,
 			UploadAt: time.Now().Format("2006-01-02 15:04:05"),
 		}
 
-		err = os.Mkdir("D:/dir1", os.ModePerm)
-		if err != nil {
-			fmt.Printf("Failed to create directory, err%s\n", err.Error())
-		}
 		newFile, err := os.Create(fileMeta.Location)
 		if err != nil {
 			fmt.Printf("Failed to create file, err%s\n", err.Error())
