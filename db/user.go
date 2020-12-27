@@ -48,7 +48,7 @@ func UserSignin(username string, encpwd string) bool {
 	if len(pRows) > 0 && string(pRows[0]["user_pwd"].([]byte)) == encpwd {
 		return true
 	}
-	log.Println("Do not find" + username + ",or pwd is not correct")
+	log.Println("Do not find,or pwd is not correct", username, string(pRows[0]["user_pwd"].([]byte)), encpwd)
 	return false
 }
 
