@@ -1,6 +1,9 @@
 package meta
 
-import "sort"
+import (
+	mydb "LookForYou/db"
+	"sort"
+)
 
 // FileMeta: 文件元信息结构
 type FileMeta struct {
@@ -20,6 +23,12 @@ func init() {
 // UpdateFileMeta: 新增/更新文件元信息
 func UpdateFileMeta(meta FileMeta) {
 	fileMetas[meta.FileSha1] = meta
+}
+
+// UpdateFileMetaDB: 新增/更新文件元信息到数据库
+func UpdateFileMetaDB(meta FileMeta) bool {
+	return mydb.OnFileUploadFinished(meta.FileSha1, meta.FileName,
+		meta.FileSize, meta.Location)
 }
 
 // GetFileMeta:通过sha1值获取文件的元信息对象
