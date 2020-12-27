@@ -2,6 +2,7 @@ package db
 
 import (
 	mydb "LookForYou/db/mysql"
+	"database/sql"
 	"fmt"
 	"log"
 )
@@ -30,4 +31,31 @@ func OnFileUploadFinished(filehash string, filename string,
 		return true
 	}
 	return false
+}
+
+type TableFile struct {
+	FileHash string
+	FileName sql.NullString
+	FileSize sql.NullInt64
+	FileAddr sql.NullString
+}
+
+func GetFileMeta(filehash string) (*TableFile, error) {
+	stmt, err := mydb.DBConn().Prepare(
+		"select file_sha1,file_addr,file_name," +
+			"file_size from tbl_file " +
+			"where file_sha1=? and status=1 limit 1")
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
+	defer stmt.Close()
+	tfile := TableFile{}
+	err = stmt.QueryRow(filehash).Scan(
+		&tfile.FileHash, &tfile.FileAddr, &tfile.FileName, &tfile.FileSize)
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
+	return &tfile, nil
 }

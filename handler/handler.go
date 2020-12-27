@@ -72,7 +72,11 @@ func UploadSucHandler(w http.ResponseWriter, r *http.Request) {
 func GetFileMetaHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm() // 解析form数据
 	filehash := r.Form["filehash"][0]
-	fMeta := meta.GetFileMeta(filehash)
+	fMeta, err := meta.GetFileMetaDB(filehash)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	bytes, err := json.Marshal(fMeta)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
