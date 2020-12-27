@@ -41,6 +41,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Sign in handler Get Request")
 	username := r.Form.Get("username")
 	password := r.Form.Get("password")
 	encPasswd := util.Sha1([]byte(password + pwd_salt))
@@ -57,6 +58,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Failed"))
 		return
 	}
+	fmt.Println("Gen token end")
 	// 3. 登录成功后 重定向到首页
 	w.Write([]byte("http://" + r.Host + "/static/view/home.html"))
 }
