@@ -3,9 +3,11 @@ package handler
 import (
 	dblayer "LookForYou/db"
 	"LookForYou/util"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 const (
@@ -36,4 +38,32 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Sign Up success"))
 	}
 	w.Write([]byte("Sign Up fail"))
+}
+
+func SignInHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.Form.Get("username")
+	password := r.Form.Get("password")
+	encPasswd := util.Sha1([]byte(password + pwd_salt))
+	// 1. 校验用户名及密码
+	pwdChecked := dblayer.UserSignin(username, encPasswd)
+	if pwdChecked == false {
+		w.Write([]byte("Failed"))
+		return
+	}
+	// 2. 生成访问凭证 token
+	token := GenToken(username)
+	upRes := dblayer.UpdateToken(username, token)
+	if !upRes {
+		w.Write([]byte("Failed"))
+		return
+	}
+	// 3. 登录成功后 重定向到首页
+	w.Write([]byte("http://" + r.Host + "/static/view/home.html"))
+}
+
+func GenToken(username string) string {
+	// md5(username+timestamp+token_salt)+timestamp[:8]
+	ts := fmt.Sprintf("%x", time.Now().Unix())
+	tokenPrefix := util.MD5([]byte(username + ts + "_tokensalt"))
+	return tokenPrefix + ts[:8]
 }

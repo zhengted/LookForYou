@@ -19,6 +19,8 @@ func main() {
 	http.HandleFunc("/file/download", handler.DownloadHandler)
 
 	http.HandleFunc("/user/signup", handler.SignupHandler)
+	http.HandleFunc("/user/signin", handler.SignInHandler)
+
 	// 监听端口
 	fmt.Println("上传服务正在启动, 监听端口:8080...")
 	err := http.ListenAndServe(":8080", nil)
