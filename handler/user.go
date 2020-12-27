@@ -51,6 +51,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Failed"))
 		return
 	}
+	fmt.Printf("pwd Checked Request:%b", pwdChecked)
 	// 2. 生成访问凭证 token
 	token := GenToken(username)
 	upRes := dblayer.UpdateToken(username, token)
@@ -58,7 +59,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Failed"))
 		return
 	}
-	fmt.Println("Gen token end")
+	fmt.Printf("Gen token end res:%b", upRes)
 	// 3. 登录成功后 重定向到首页
 	w.Write([]byte("http://" + r.Host + "/static/view/home.html"))
 }
