@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	pwd_salt = "#890"
+	pwd_salt   = "#890"
+	token_salt = "_tokensalt"
 )
 
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,12 +33,13 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Invalid parameter"))
 		return
 	}
-	enc_passwd := util.Sha1([]byte(passwd + pwd_salt))
-	suc := dblayer.UserSignup(username, enc_passwd)
+	encPasswd := util.Sha1([]byte(passwd + pwd_salt))
+	suc := dblayer.UserSignup(username, encPasswd)
 	if suc {
-		w.Write([]byte("Sign Up success"))
+		w.Write([]byte("SUCCESS"))
+	} else {
+		w.Write([]byte("FAILED"))
 	}
-	w.Write([]byte("Sign Up fail"))
 }
 
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +80,6 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 func GenToken(username string) string {
 	// md5(username+timestamp+token_salt)+timestamp[:8]
 	ts := fmt.Sprintf("%x", time.Now().Unix())
-	tokenPrefix := util.MD5([]byte(username + ts + "_tokensalt"))
+	tokenPrefix := util.MD5([]byte(username + ts + token_salt))
 	return tokenPrefix + ts[:8]
 }
