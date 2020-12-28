@@ -95,7 +95,7 @@ func GetUserInfo(username string) (User, error) {
 func GetTokenFromDB(username string) (string, error) {
 	var ret string
 	stmt, err := mydb.DBConn().Prepare(
-		"select user_token where user_name=? limit 1")
+		"select user_token from tbl_user_token where user_name=? limit 1")
 	if err != nil {
 		log.Println(err.Error())
 		return "", err
