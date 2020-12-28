@@ -117,6 +117,7 @@ const ONEDAYTIME = 24 * 60 * 60
 func IsTokenValid(token string, username string) bool {
 	// 判断token的时效性
 	curTime := time.Now().Unix()
+	fmt.Println("token", token)
 	tokenTime, err := strconv.Atoi(token[len(token)-9:])
 	if err != nil {
 		log.Println(err.Error())
