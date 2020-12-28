@@ -20,6 +20,7 @@ func main() {
 
 	http.HandleFunc("/user/signup", handler.SignupHandler)
 	http.HandleFunc("/user/signin", handler.SignInHandler)
+	http.HandleFunc("/user/info", handler.UserInfoHandler)
 
 	// 监听端口
 	fmt.Println("Listening:8080...")
