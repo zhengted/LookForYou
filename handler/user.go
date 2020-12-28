@@ -108,6 +108,7 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 func GenToken(username string) string {
 	// md5(username+timestamp+token_salt)+timestamp[:8]
 	ts := fmt.Sprintf("%x", time.Now().Unix())
+	fmt.Println("ts", ts)
 	tokenPrefix := util.MD5([]byte(username + ts + token_salt))
 	return tokenPrefix + ts[:8]
 }
