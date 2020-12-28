@@ -43,12 +43,14 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Sign in handler Get Request")
 	username := r.Form.Get("username")
+	fmt.Println("SignInHandler username:", username)
 	password := r.Form.Get("password")
+	fmt.Println("SignInHandler password:", password)
 	encPasswd := util.Sha1([]byte(password + pwd_salt))
 	// 1. 校验用户名及密码
 	pwdChecked := dblayer.UserSignin(username, encPasswd)
 	if pwdChecked == false {
-		w.Write([]byte("Failed"))
+		w.Write([]byte("FAILED"))
 		return
 	}
 	fmt.Printf("pwd Checked Request:%b", pwdChecked)
@@ -56,7 +58,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	token := GenToken(username)
 	upRes := dblayer.UpdateToken(username, token)
 	if !upRes {
-		w.Write([]byte("Failed"))
+		w.Write([]byte("FAILED"))
 		return
 	}
 	fmt.Printf("Gen token end res:%b", upRes)
