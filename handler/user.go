@@ -119,11 +119,13 @@ func IsTokenValid(token string, username string) bool {
 	curTime := time.Now().Unix()
 	tokenTime, err := strconv.Atoi(token[len(token)-9:])
 	if err != nil {
+		log.Println(err.Error())
 		return false
 	}
 	newTokenTime := int64(tokenTime)
 	nDiff := curTime - newTokenTime
 	if nDiff > ONEDAYTIME {
+		log.Println("request overtime", nDiff)
 		return false
 	}
 	// 从数据库表中查询username对应的token信息
