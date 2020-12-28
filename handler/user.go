@@ -41,11 +41,9 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Sign in handler Get Request")
+	r.ParseForm()
 	username := r.Form.Get("username")
-	fmt.Println("SignInHandler username:", username)
 	password := r.Form.Get("password")
-	fmt.Println("SignInHandler password:", password)
 	encPasswd := util.Sha1([]byte(password + pwd_salt))
 	// 1. 校验用户名及密码
 	pwdChecked := dblayer.UserSignin(username, encPasswd)
@@ -53,7 +51,6 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("FAILED"))
 		return
 	}
-	fmt.Printf("pwd Checked Request:%b", pwdChecked)
 	// 2. 生成访问凭证 token
 	token := GenToken(username)
 	upRes := dblayer.UpdateToken(username, token)
@@ -61,7 +58,6 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("FAILED"))
 		return
 	}
-	fmt.Printf("Gen token end res:%b", upRes)
 	// 3. 登录成功后 重定向到首页
 	w.Write([]byte("http://" + r.Host + "/static/view/home.html"))
 }

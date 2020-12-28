@@ -2,7 +2,6 @@ package db
 
 import (
 	mydb "LookForYou/db/mysql"
-	"fmt"
 	"log"
 )
 
@@ -33,7 +32,6 @@ func UserSignin(username string, encpwd string) bool {
 		log.Println(err.Error())
 		return false
 	}
-	fmt.Println("After prepare ")
 	defer stmt.Close()
 	rows, err := stmt.Query(username)
 	if err != nil {
@@ -43,7 +41,6 @@ func UserSignin(username string, encpwd string) bool {
 		log.Println("username not found:" + username)
 		return false
 	}
-	fmt.Println("After query ", rows, err)
 	pRows := mydb.ParseRows(rows)
 	if len(pRows) > 0 && string(pRows[0]["user_pwd"].([]byte)) == encpwd {
 		return true
