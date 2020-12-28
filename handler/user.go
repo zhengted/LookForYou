@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -84,7 +85,7 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	token := r.Form.Get("token")
 
 	// 2. 验证token是否有效
-	if !IsTokenValid(token) {
+	if !IsTokenValid(token, username) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -111,9 +112,29 @@ func GenToken(username string) string {
 	return tokenPrefix + ts[:8]
 }
 
-func IsTokenValid(token string) bool {
-	// TODO: 判断token的时效性
-	// TODO: 从数据库表中查询username对应的token信息
-	// TODO: 对比两个token是否有效
+const ONEDAYTIME = 24 * 60 * 60
+
+func IsTokenValid(token string, username string) bool {
+	// 判断token的时效性
+	curTime := time.Now().Unix()
+	tokenTime, err := strconv.Atoi(token[len(token)-9:])
+	if err != nil {
+		return false
+	}
+	newTokenTime := int64(tokenTime)
+	nDiff := curTime - newTokenTime
+	if nDiff > ONEDAYTIME {
+		return false
+	}
+	// 从数据库表中查询username对应的token信息
+	tokenDB, err := dblayer.GetTokenFromDB(username)
+	if err != nil {
+		return false
+	}
+	// 对比两个token是否有效
+	if tokenDB != token {
+		log.Println("token not same", tokenDB, token)
+		return false
+	}
 	return true
 }

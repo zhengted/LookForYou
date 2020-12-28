@@ -91,3 +91,20 @@ func GetUserInfo(username string) (User, error) {
 	}
 	return user, nil
 }
+
+func GetTokenFromDB(username string) (string, error) {
+	var ret string
+	stmt, err := mydb.DBConn().Prepare(
+		"select user_token where user_name=? limit 1")
+	if err != nil {
+		log.Println(err.Error())
+		return "", err
+	}
+	defer stmt.Close()
+	err = stmt.QueryRow(username).Scan(&ret)
+	if err != nil {
+		log.Println(err.Error())
+		return "", err
+	}
+	return ret, nil
+}
