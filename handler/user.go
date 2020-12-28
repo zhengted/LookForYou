@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -82,13 +81,13 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. 解析请求参数
 	r.ParseForm()
 	username := r.Form.Get("username")
-	token := r.Form.Get("token")
+	//token := r.Form.Get("token")
 
-	// 2. 验证token是否有效
-	if !IsTokenValid(token, username) {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
+	// 2. 验证token是否有效 清见main.go 中已经加了一层拦截器 这里不需要再验证
+	//if !IsTokenValid(token, username) {
+	//	w.WriteHeader(http.StatusForbidden)
+	//	return
+	//}
 
 	// 3. 查询用户信息
 	user, err := dblayer.GetUserInfo(username)
@@ -108,7 +107,6 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 func GenToken(username string) string {
 	// md5(username+timestamp+token_salt)+timestamp[:8]
 	ts := fmt.Sprintf("%x", time.Now().Unix())
-	fmt.Println("ts", ts)
 	tokenPrefix := util.MD5([]byte(username + ts + token_salt))
 	return tokenPrefix + ts[:8]
 }
@@ -116,18 +114,13 @@ func GenToken(username string) string {
 const ONEDAYTIME = 24 * 60 * 60
 
 func IsTokenValid(token string, username string) bool {
-	// 判断token的时效性
-	curTime := time.Now().Unix()
-	fmt.Println("token", token)
-	tokenTime, err := strconv.Atoi(token[len(token)-9:])
-	if err != nil {
-		log.Println(err.Error())
+	if len(token) != 40 {
 		return false
 	}
-	newTokenTime := int64(tokenTime)
-	nDiff := curTime - newTokenTime
-	if nDiff > ONEDAYTIME {
-		log.Println("request overtime", nDiff)
+
+	// 判断token的时效性
+	tokenTS := token[:8]
+	if util.Hex2Dec(tokenTS) < time.Now().Unix()-ONEDAYTIME {
 		return false
 	}
 	// 从数据库表中查询username对应的token信息
