@@ -14,6 +14,13 @@ type FileMeta struct {
 	UploadAt string
 }
 
+// 文件状态标识
+const (
+	FileState_CanUse  = 1 // 可用
+	FileState_NotUse  = 2 // 不可用
+	FileState_Deleted = 3 // 已删除
+)
+
 var fileMetas map[string]FileMeta
 
 func init() {
@@ -62,6 +69,11 @@ func GetLastFileMetas(count int) []FileMeta {
 		return fMetaArray
 	}
 	return fMetaArray[0:count]
+}
+
+// RemoveFileDB: 删除DB中的文件元信息
+func RemoveFileDB(filesha1 string) bool {
+	return mydb.DelFileMeta(filesha1)
 }
 
 // RemoveFileMeta: 删除文件元信息

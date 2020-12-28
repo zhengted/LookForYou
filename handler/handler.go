@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -161,7 +162,12 @@ func FileDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	fMeta := meta.GetFileMeta(fileSha1)
 	os.Remove(fMeta.Location)
-
+	if !meta.RemoveFileDB(fileSha1) {
+		log.Println("FileDeleteHandler Remove file in db failed", fileSha1)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	meta.RemoveFileMeta(fileSha1)
+
 	w.WriteHeader(http.StatusOK)
 }
