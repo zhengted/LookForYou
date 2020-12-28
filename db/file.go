@@ -1,8 +1,8 @@
 package db
 
 import (
+	"LookForYou/config"
 	mydb "LookForYou/db/mysql"
-	"LookForYou/meta"
 	"database/sql"
 	"fmt"
 	"log"
@@ -19,7 +19,7 @@ func OnFileUploadFinished(filehash string, filename string,
 		return false
 	}
 	defer stmt.Close()
-	status := meta.FileState_CanUse
+	status := config.FileState_CanUse
 	ret, err := stmt.Exec(filehash, filename, filesize, fileaddr, status)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -71,7 +71,7 @@ func DelFileMeta(filehash string) bool {
 		return false
 	}
 	defer stmt.Close()
-	newStatus := meta.FileState_Deleted
+	newStatus := config.FileState_Deleted
 	ret, err := stmt.Exec(newStatus, filehash)
 	if err != nil {
 		log.Println(err.Error())

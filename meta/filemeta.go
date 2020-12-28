@@ -1,7 +1,7 @@
 package meta
 
 import (
-	mydb "LookForYou/db"
+	dblayer "LookForYou/db"
 	"sort"
 )
 
@@ -13,13 +13,6 @@ type FileMeta struct {
 	Location string
 	UploadAt string
 }
-
-// 文件状态标识
-const (
-	FileState_CanUse  = 1 // 可用
-	FileState_NotUse  = 2 // 不可用
-	FileState_Deleted = 3 // 已删除
-)
 
 var fileMetas map[string]FileMeta
 
@@ -34,7 +27,7 @@ func UpdateFileMeta(meta FileMeta) {
 
 // UpdateFileMetaDB: 新增/更新文件元信息到数据库
 func UpdateFileMetaDB(meta FileMeta) bool {
-	return mydb.OnFileUploadFinished(meta.FileSha1, meta.FileName,
+	return dblayer.OnFileUploadFinished(meta.FileSha1, meta.FileName,
 		meta.FileSize, meta.Location)
 }
 
@@ -45,7 +38,7 @@ func GetFileMeta(fileSha1 string) FileMeta {
 
 // GetFileMetaDB:从mysql获取文件元信息
 func GetFileMetaDB(fileSha1 string) (FileMeta, error) {
-	tfile, err := mydb.GetFileMeta(fileSha1)
+	tfile, err := dblayer.GetFileMeta(fileSha1)
 	if err != nil {
 		return FileMeta{}, err
 	}
@@ -73,7 +66,7 @@ func GetLastFileMetas(count int) []FileMeta {
 
 // RemoveFileDB: 删除DB中的文件元信息
 func RemoveFileDB(filesha1 string) bool {
-	return mydb.DelFileMeta(filesha1)
+	return dblayer.DelFileMeta(filesha1)
 }
 
 // RemoveFileMeta: 删除文件元信息
