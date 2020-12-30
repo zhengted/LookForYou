@@ -9,7 +9,7 @@ func Conn() *redis.Pool {
 		Dial: func() (redis.Conn, error) {
 			return redis.Dial("tcp", "127.0.0.1:16379")
 		},
-		MaxActive: 1,
+		MaxActive: 100,
 	}
 	return pool
 }
