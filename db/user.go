@@ -2,6 +2,9 @@ package db
 
 import (
 	mydb "LookForYou/db/mysql"
+	"LookForYou/db/redisConn"
+	"errors"
+	"github.com/garyburd/redigo/redis"
 	"log"
 )
 
@@ -51,15 +54,47 @@ func UserSignin(username string, encpwd string) bool {
 	return false
 }
 
+// 修改为存redis
 func UpdateToken(username string, token string) bool {
-	stmt, err := mydb.DBConn().Prepare(
-		"replace into tbl_user_token(`user_name`,`user_token`) values (?,?)")
+	// sql版本的token
+	//stmt, err := mydb.DBConn().Prepare(
+	//	"replace into tbl_user_token(`user_name`,`user_token`) values (?,?)")
+	//if err != nil {
+	//	log.Println(err.Error())
+	//	return false
+	//}
+	//defer stmt.Close()
+	//_, err = stmt.Exec(username, token)
+	//if err != nil {
+	//	log.Println(err.Error())
+	//	return false
+	//}
+	//return true
+
+	pool := redisConn.Conn()
+	if pool == nil {
+		log.Println("Connect redis FAILED pool == nil")
+		return false
+	}
+	defer pool.Close()
+
+	conn := pool.Get()
+	err := conn.Err()
+	if err != nil {
+		log.Println("Connect redis FAILED Conn occur an error", err.Error())
+		return false
+	}
+	err = conn.Send("SET", username, token)
 	if err != nil {
 		log.Println(err.Error())
 		return false
 	}
-	defer stmt.Close()
-	_, err = stmt.Exec(username, token)
+	err = conn.Flush()
+	if err != nil {
+		log.Println(err.Error())
+		return false
+	}
+	_, err = conn.Receive()
 	if err != nil {
 		log.Println(err.Error())
 		return false
@@ -92,19 +127,46 @@ func GetUserInfo(username string) (User, error) {
 	return user, nil
 }
 
+// TODO: 修改为从redis中取数据
 func GetTokenFromDB(username string) (string, error) {
-	var ret string
-	stmt, err := mydb.DBConn().Prepare(
-		"select user_token from tbl_user_token where user_name=? limit 1")
+	// sql版的token
+	//var ret string
+	//stmt, err := mydb.DBConn().Prepare(
+	//	"select user_token from tbl_user_token where user_name=? limit 1")
+	//if err != nil {
+	//	log.Println(err.Error())
+	//	return "", err
+	//}
+	//defer stmt.Close()
+	//err = stmt.QueryRow(username).Scan(&ret)
+	//if err != nil {
+	//	log.Println(err.Error())
+	//	return "", err
+	//}
+	//return ret, nil
+
+	pool := redisConn.Conn()
+	if pool == nil {
+		log.Println("Connect redis FAILED pool == nil")
+		return "", errors.New("Connect redis FAILED pool == nil")
+	}
+	defer pool.Close()
+
+	conn := pool.Get()
+	err := conn.Err()
+	if err != nil {
+		log.Println("Connect redis FAILED Conn occur an error", err.Error())
+		return "", err
+	}
+	doReply, err := conn.Do("GET", username)
 	if err != nil {
 		log.Println(err.Error())
 		return "", err
 	}
-	defer stmt.Close()
-	err = stmt.QueryRow(username).Scan(&ret)
+	result, err := redis.String(doReply, err)
 	if err != nil {
 		log.Println(err.Error())
 		return "", err
 	}
-	return ret, nil
+	return result, nil
 }
