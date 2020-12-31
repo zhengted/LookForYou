@@ -67,7 +67,7 @@
         $.ajax({
             url: "/user/signin",
             type: "POST",
-            data: {"username":username.value, "password":password.value},
+            data: {"username" :  username.value, "password" :  password.value},
             error: function(err) {
                     alert(err);
             },
