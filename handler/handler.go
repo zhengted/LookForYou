@@ -67,7 +67,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize)
 		if suc {
-			http.Redirect(w, r, "/file/upload/suc", http.StatusFound) // 这里写错了一次，file前面的“/”没加上
+			http.Redirect(w, r, "/static/view/home.html", http.StatusFound) // 这里写错了一次，file前面的“/”没加上
 		} else {
 			w.Write([]byte("Upload Failed."))
 		}
