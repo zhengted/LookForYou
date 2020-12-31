@@ -39,7 +39,7 @@ func GetFileMeta(fileSha1 string) FileMeta {
 // GetFileMetaDB:从mysql获取文件元信息
 func GetFileMetaDB(fileSha1 string) (FileMeta, error) {
 	tfile, err := dblayer.GetFileMeta(fileSha1)
-	if err != nil {
+	if err != nil || tfile == nil {
 		return FileMeta{}, err
 	}
 	fmeta := FileMeta{
