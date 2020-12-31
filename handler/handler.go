@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"LookForYou/db"
 	"LookForYou/meta"
 	"LookForYou/util"
 	"encoding/json"
@@ -60,7 +61,17 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(fileMeta.FileSha1)
 		_ = meta.UpdateFileMetaDB(fileMeta)
 
-		http.Redirect(w, r, "/file/upload/suc", http.StatusFound) // 这里写错了一次，file前面的“/”没加上
+		// TODO: 写道tbl_user_file
+		r.ParseForm()
+		username := r.Form.Get("username")
+
+		suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize)
+		if suc {
+			http.Redirect(w, r, "/file/upload/suc", http.StatusFound) // 这里写错了一次，file前面的“/”没加上
+		} else {
+			w.Write([]byte("Upload Failed."))
+		}
+
 	}
 }
 
