@@ -51,6 +51,7 @@ func init() {
 
 // InitialMultipartUploadHandler:初始化分块上传
 func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("收到分块上传初始化请求") // temp
 	// 1.解析用户请求
 	r.ParseForm()
 	username := r.Form.Get("username")
