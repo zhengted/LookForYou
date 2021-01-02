@@ -301,6 +301,7 @@
                     file.size :
                     (chunkIdx + 1) * upInitRes.ChunkSize;
                 //构建表单参数
+                var serverHost = "http://49.234.178.60:8080";
                 let url =
                     `${serverHost}/file/mpupload/uppart?${queryParams()}` +
                     `&index=${chunkIdx + 1}&uploadid=${
@@ -326,6 +327,7 @@
             let extra =
                 `&uploadid=${upInitRes.UploadID}&filesize=${file.size}` +
                 `&filename=${file.name}&filehash=${fileSha1}`;
+            var serverHost = "http://49.234.178.60:8080";
             let url =
                 `${serverHost}/file/mpupload/complete?` + queryParams() + extra;
             $.post(url, function(data) {
