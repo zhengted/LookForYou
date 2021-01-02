@@ -132,7 +132,7 @@ func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 // UploadPartHandler : 上传文件分块
 func UploadPartHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("UploadPartHandler Get Request")
+	//fmt.Println("UploadPartHandler Get Request")
 	// 1. 解析用户请求参数
 	r.ParseForm()
 	//	username := r.Form.Get("username")
@@ -145,7 +145,7 @@ func UploadPartHandler(w http.ResponseWriter, r *http.Request) {
 	defer rConn.Close()
 
 	// 3. 获得文件句柄，用于存储分块内容
-	fmt.Println("UploadPartHandler Get file handle")
+	//fmt.Println("UploadPartHandler Get file handle")
 	fpath := ChunkDir + uploadID + "/" + chunkIndex
 	os.MkdirAll(path.Dir(fpath), 0744)
 	fd, err := os.Create(fpath)
@@ -180,11 +180,11 @@ func UploadPartHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(util.NewRespMsg(0, "OK", nil).JSONBytes())
 }
 
-// CompleteUploadHandler: 通知上传合并
+// CompleteUploadHandler : 通知上传合并
 func CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. 解析请求参数
 	r.ParseForm()
-	upid := r.Form.Get("uploadid")
+	uploadID := r.Form.Get("uploadid")
 	username := r.Form.Get("username")
 	filehash := r.Form.Get("filehash")
 	filesize := r.Form.Get("filesize")
@@ -195,7 +195,7 @@ func CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
 	defer rConn.Close()
 
 	// 3. 通过uploadid查询redis并判断是否所有分块上传完成
-	data, err := redis.Values(rConn.Do("HGETALL", "MP_"+upid))
+	data, err := redis.Values(rConn.Do("HGETALL", "MP_"+uploadID))
 	if err != nil {
 		w.Write(util.NewRespMsg(-1, "complete upload failed", nil).JSONBytes())
 		return
@@ -205,24 +205,43 @@ func CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(data); i += 2 {
 		k := string(data[i].([]byte))
 		v := string(data[i+1].([]byte))
-		if k == "checkcount" {
+		if k == "chunkcount" {
 			totalCount, _ = strconv.Atoi(v)
 		} else if strings.HasPrefix(k, "chkidx_") && v == "1" {
-			chunkCount += 1
+			chunkCount++
 		}
 	}
 	if totalCount != chunkCount {
-		w.Write(util.NewRespMsg(-2, "invalid request", nil).JSONBytes())
+		w.Write(util.NewRespMsg(-2, "Invalid request", nil).JSONBytes())
+		return
 	}
 
-	// 4. TODO:合并分块
+	// 4. 合并分块 (备注: 更新于2020/04/01; 此合并逻辑非必须实现，因后期转移到ceph/oss时也可以通过分块方式上传)
+	if mergeSuc := util.MergeChuncksByShell(ChunkDir+uploadID, MergeDir+filehash, filehash); !mergeSuc {
+		w.Write(util.NewRespMsg(-3, "Complete upload failed", nil).JSONBytes())
+		return
+	}
 
-	// 5. 更新唯一文件表和用户文件表
+	// 5. 更新唯一文件表及用户文件表
 	fsize, _ := strconv.Atoi(filesize)
-	dblayer.OnFileUploadFinished(filehash, filename, int64(fsize), "")
+	// 更新于2020-04: 增加fileaddr参数的写入
+	dblayer.OnFileUploadFinished(filehash, filename, int64(fsize), MergeDir+filehash)
 	dblayer.OnUserFileUploadFinished(username, filehash, filename, int64(fsize))
 
-	// 6. 向客户端响应处理结果
+	// 更新于2020-04: 删除已上传的分块文件及redis分块信息
+	_, delHashErr := rConn.Do("DEL", HashUpIDKeyPrefix+filehash)
+	delUploadID, delUploadInfoErr := redis.Int64(rConn.Do("DEL", ChunkKeyPrefix+uploadID))
+	if delUploadID != 1 || delUploadInfoErr != nil || delHashErr != nil {
+		w.Write(util.NewRespMsg(-4, "Complete upload part failed", nil).JSONBytes())
+		return
+	}
+
+	delRes := util.RemovePathByShell(ChunkDir + uploadID)
+	if !delRes {
+		fmt.Printf("Failed to delete chuncks as upload comoleted, uploadID: %s\n", uploadID)
+	}
+
+	// 6. 响应处理结果
 	w.Write(util.NewRespMsg(0, "OK", nil).JSONBytes())
 }
 
