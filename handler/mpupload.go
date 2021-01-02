@@ -29,9 +29,9 @@ type MultiPartUploadInfo struct {
 
 const (
 	// ChunkDir: 上传的分块所在目录
-	ChunkDir = "/data/chunks/"
+	ChunkDir = "/home/ubuntu/FileStoreData/chunks/"
 	// MergeDir: 合并后的文件所在目录
-	MergeDir = "/data/merge/"
+	MergeDir = "/home/ubuntu/FileStoreData/merge/"
 	// ChunkKeyPrefix: 分块信息对应的redis键前缀
 	ChunkKeyPrefix = "MP_"
 	// HashUpIDKeyPrefix: 文件hash映射uploadid对应的redis前缀
