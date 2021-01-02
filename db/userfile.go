@@ -55,3 +55,16 @@ func QueryUserFileMetas(username string, limit int) ([]UserFile, error) {
 	}
 	return userFiles, nil
 }
+
+// IsUserFileUploaded : 用户文件是否已经上传过
+func IsUserFileUploaded(username string, filehash string) bool {
+	stmt, err := mydb.DBConn().Prepare(
+		"select 1 from tbl_user_file where user_name=? and file_sha1=? and status=1 limit 1")
+	rows, err := stmt.Query(username, filehash)
+	if err != nil {
+		return false
+	} else if rows == nil || !rows.Next() {
+		return false
+	}
+	return true
+}

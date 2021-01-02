@@ -2,6 +2,7 @@ package handler
 
 import (
 	rPool "LookForYou/cache/redis"
+	cmn "LookForYou/common"
 	dblayer "LookForYou/db"
 	"LookForYou/util"
 	"fmt"
@@ -24,7 +25,7 @@ type MultiPartUploadInfo struct {
 	ChunkSize  int
 	ChunkCount int
 	// 已经上传完成的分块索引列表
-	ChunkExist []int
+	ChunkExists []int
 }
 
 const (
@@ -49,25 +50,31 @@ func init() {
 	}
 }
 
-// InitialMultipartUploadHandler:初始化分块上传
+// InitialMultipartUploadHandler : 初始化分块上传
 func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("收到分块上传初始化请求") // temp
-	// 1.解析用户请求
+	// 1. 解析用户请求参数
 	r.ParseForm()
 	username := r.Form.Get("username")
 	filehash := r.Form.Get("filehash")
 	filesize, err := strconv.Atoi(r.Form.Get("filesize"))
 	if err != nil {
-		msg := util.RespMsg{-1, "Params Invalid", nil}
-		w.Write(msg.JSONBytes())
+		w.Write(util.NewRespMsg(-1, "params invalid", nil).JSONBytes())
+		return
 	}
 
-	// 2.获得redis的一个链接
+	// 判断文件是否存在
+	if dblayer.IsUserFileUploaded(username, filehash) {
+		w.Write(util.NewRespMsg(int(cmn.FileAlreadExists), "OK", nil).JSONBytes())
+		return
+	}
+
+	// 2. 获得redis的一个连接
 	rConn := rPool.RedisPool().Get()
 	defer rConn.Close()
 
-	// 3. 通过文件hash判断是否断点续传，并获取uploadid
 	uploadID := ""
+
+	// 3. 通过文件hash判断是否断点续传，并获取uploadID
 	keyExists, _ := redis.Bool(rConn.Do("EXISTS", HashUpIDKeyPrefix+filehash))
 	if keyExists {
 		uploadID, err = redis.String(rConn.Do("GET", HashUpIDKeyPrefix+filehash))
@@ -77,9 +84,9 @@ func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 4.1 首次上传则新建uploadid
-	// 4.2 断点续传则根据uploadid获取已上传文件的文件分块列表
-	chunkExist := []int{}
+	// 4.1 首次上传则新建uploadID
+	// 4.2 断点续传则根据uploadID获取已上传的文件分块列表
+	chunksExist := []int{}
 	if uploadID == "" {
 		uploadID = username + fmt.Sprintf("%x", time.Now().UnixNano())
 	} else {
@@ -89,28 +96,29 @@ func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for i := 0; i < len(chunks); i += 2 {
-			k := string((chunks[i].([]byte)))
-			v := string((chunks[i+1].([]byte)))
-			if strings.HasPrefix(k, ChunkKeyPrefix) && v == "1" {
-				chunkidx, _ := strconv.Atoi(k[7:len(k)])
-				chunkExist = append(chunkExist, chunkidx)
+			k := string(chunks[i].([]byte))
+			v := string(chunks[i+1].([]byte))
+			if strings.HasPrefix(k, "chkidx_") && v == "1" {
+				// chkidx_6 -> 6
+				chunkIdx, _ := strconv.Atoi(k[7:len(k)])
+				chunksExist = append(chunksExist, chunkIdx)
 			}
 		}
 	}
 
-	// 5.生成分块上传的初始化信息
+	// 5. 生成分块上传的初始化信息
 	upInfo := MultiPartUploadInfo{
-		filehash,
-		filesize,
-		username + fmt.Sprintf("%x", time.Now().UnixNano()),
-		5 * 1024 * 1024,
-		int(math.Ceil(float64(filesize) / 5 * 1024 * 1024)),
-		chunkExist,
+		FileHash:    filehash,
+		FileSize:    filesize,
+		UploadID:    uploadID,
+		ChunkSize:   5 * 1024 * 1024, // 5MB
+		ChunkCount:  int(math.Ceil(float64(filesize) / (5 * 1024 * 1024))),
+		ChunkExists: chunksExist,
 	}
 
-	// 6.将初始化信息写入到redis缓存
-	if len(upInfo.ChunkExist) <= 0 {
-		hkey := "MP_" + upInfo.UploadID
+	// 6. 将初始化信息写入到redis缓存
+	if len(upInfo.ChunkExists) <= 0 {
+		hkey := ChunkKeyPrefix + upInfo.UploadID
 		rConn.Do("HSET", hkey, "chunkcount", upInfo.ChunkCount)
 		rConn.Do("HSET", hkey, "filehash", upInfo.FileHash)
 		rConn.Do("HSET", hkey, "filesize", upInfo.FileSize)
@@ -118,7 +126,7 @@ func InitialMultipartUploadHandler(w http.ResponseWriter, r *http.Request) {
 		rConn.Do("SET", HashUpIDKeyPrefix+filehash, upInfo.UploadID, "EX", 43200)
 	}
 
-	// 7.将响应初始化数据返回客户端
+	// 7. 将响应初始化数据返回到客户端
 	w.Write(util.NewRespMsg(0, "OK", upInfo).JSONBytes())
 }
 
