@@ -40,11 +40,11 @@ const (
 
 func init() {
 	if err := os.MkdirAll(ChunkDir, 0744); err != nil {
-		fmt.Println("无法指定目录用于存储分块文件:" + ChunkDir)
+		fmt.Println("无法指定目录用于存储分块文件:"+ChunkDir, err.Error())
 		os.Exit(1)
 	}
 	if err := os.MkdirAll(MergeDir, 0744); err != nil {
-		fmt.Println("无法指定目录用于存储合并后文件:" + MergeDir)
+		fmt.Println("无法指定目录用于存储合并后文件:"+MergeDir, err.Error())
 		os.Exit(1)
 	}
 }
