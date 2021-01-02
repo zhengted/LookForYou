@@ -158,7 +158,7 @@
             ['rename', '/file/update'],
             ['del', '/file/delete'],
         ]);
-        var host = 'http://localhost:8080';
+        var host = 'http://49.234.178.60:8080';
         var path = pathMap.get(evt);
         var url = `${host}${path}?filehash={0}&{1}`.format(filehash, queryParams());
         if (evt == 'dl') {

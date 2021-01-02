@@ -27,7 +27,7 @@ var username string
 var password string
 
 const (
-	apiHost           = "http://localhost:8080/"
+	apiHost           = "http://49.234.178.60:8080/"
 	apiUserSignin     = apiHost + "user/signin"
 	apiUploadInit     = apiHost + "file/mpupload/init"
 	apiUploadPart     = apiHost + "file/mpupload/uppart"

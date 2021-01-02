@@ -10,7 +10,7 @@
 
     const secure = location.protocol === 'https:' ||
         location.protocol === 'chrome-extension:' ||
-        location.hostname === 'localhost'
+        location.hostname === '49.234.178.60'
     let iframe
     let loaded
     let transfarableSupport = false
