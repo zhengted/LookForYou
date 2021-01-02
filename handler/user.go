@@ -88,11 +88,11 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	//	w.WriteHeader(http.StatusForbidden)
 	//	return
 	//}
-
 	// 3. 查询用户信息
 	user, err := dblayer.GetUserInfo(username)
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
+		fmt.Println(err.Error())
 		return
 	}
 	// 4. 组装并相应用户数据
