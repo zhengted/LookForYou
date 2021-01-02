@@ -1,10 +1,14 @@
 package handler
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 func HTTPInterceptor(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("拦截器Inceptor工作")
 			r.ParseForm()
 			username := r.Form.Get("username")
 			token := r.Form.Get("token")
