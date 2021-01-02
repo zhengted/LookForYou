@@ -175,6 +175,7 @@ func UploadPartHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 4. 更新redis缓存状态
 	rConn.Do("HSET", ChunkKeyPrefix+uploadID, "chkidx_"+chunkIndex, 1)
+	fmt.Println("Update Redis status success", ChunkKeyPrefix+uploadID, "chkidx_"+chunkIndex)
 
 	// 5. 返回处理结果到客户端
 	w.Write(util.NewRespMsg(0, "OK", nil).JSONBytes())
@@ -197,6 +198,7 @@ func CompleteUploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 3. 通过uploadid查询redis并判断是否所有分块上传完成
 	data, err := redis.Values(rConn.Do("HGETALL", "MP_"+uploadID))
 	if err != nil {
+		fmt.Println("CompleteUploadHandler Check redis status failed", data)
 		w.Write(util.NewRespMsg(-1, "complete upload failed", nil).JSONBytes())
 		return
 	}
