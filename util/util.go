@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 )
 
 type Sha1Stream struct {
@@ -93,4 +94,12 @@ func Contain(target interface{}, obj interface{}) (bool, error) {
 	}
 
 	return false, errors.New("not in this array/slice/map")
+}
+
+func Hex2Dec(val string) int64 {
+	n, err := strconv.ParseInt(val, 16, 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return n
 }
