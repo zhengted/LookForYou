@@ -263,6 +263,7 @@
         function multipartUploadInit() {
             return new Promise((resolve, reject) => {
                 let extra = `&filehash=${fileSha1}&filesize=${file.size}`;
+                var serverHost = "http://49.234.178.60:8080";
                 let url = `${serverHost}/file/mpupload/init?` + queryParams() + extra;
                 $.post(url, (data) => {
                     resolve(data);
