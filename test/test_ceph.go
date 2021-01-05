@@ -8,11 +8,15 @@ import (
 
 func main() {
 	bucket := ceph.GetCephBucket("testbucket1")
-
+	if bucket == nil {
+		fmt.Println("bucket is nil")
+		return
+	}
 	// 创建一个新的bucket
 	err := bucket.PutBucket(s3.PublicRead)
-	fmt.Printf("create bucket err: %v\n", err.Error())
-
+	if err != nil {
+		fmt.Printf("create bucket err: %v\n", err.Error())
+	}
 	// 查询这个bucket下面指定条件的object keys
 	res, err := bucket.List("", "", "", 100)
 	fmt.Printf("object keys: %+v\n", res)
