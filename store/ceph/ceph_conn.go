@@ -14,8 +14,8 @@ func GetCephConnection() *s3.S3 {
 	}
 	// 1. 初始化ceph的一些信息
 	auth := aws.Auth{
-		AccessKey: "0NO01QRQ4H2VT83I1RYE",
-		SecretKey: "hKdsNanQzwMTSOdBC8yyiIm7InwgtofnTO2wMfo3",
+		AccessKey: "EYDI419I4G8WOQE40JI0",
+		SecretKey: "DYguzeWjX8fZWK1xDGBRwG6JqSVtylui4Mzb164N",
 	}
 
 	curRegion := aws.Region{
