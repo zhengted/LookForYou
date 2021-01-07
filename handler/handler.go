@@ -69,7 +69,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		//_ = bucket.Put(cephPath, data, "octet-stream", s3.PublicRead)
 		//fileMeta.Location = cephPath
 
-		ossPath := "/oss/" + fileMeta.FileSha1
+		ossPath := "oss/" + fileMeta.FileSha1
 		err = oss.Bucket().PutObject(ossPath, newFile)
 		if err != nil {
 			fmt.Println("upload oss:", err.Error())
