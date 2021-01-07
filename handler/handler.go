@@ -271,5 +271,5 @@ func DownloadURLHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(util.NewRespMsg(-1, "download failed", nil).JSONBytes())
 		return
 	}
-
+	w.Write([]byte(signedURL))
 }
