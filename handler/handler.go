@@ -3,11 +3,10 @@ package handler
 import (
 	"LookForYou/db"
 	"LookForYou/meta"
-	"LookForYou/store/ceph"
+	"LookForYou/store/oss"
 	"LookForYou/util"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/amz.v1/s3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -64,12 +63,19 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		// 同时将文件写入ceph存储
 		newFile.Seek(0, 0)
-		data, _ := ioutil.ReadAll(newFile)
-		bucket := ceph.GetCephBucket("userfile")
-		cephPath := "/ceph/" + fileMeta.FileSha1
-		_ = bucket.Put(cephPath, data, "octet-stream", s3.PublicRead)
-		fileMeta.Location = cephPath
+		//data, _ := ioutil.ReadAll(newFile)
+		//bucket := ceph.GetCephBucket("userfile")
+		//cephPath := "/ceph/" + fileMeta.FileSha1
+		//_ = bucket.Put(cephPath, data, "octet-stream", s3.PublicRead)
+		//fileMeta.Location = cephPath
 
+		ossPath := "/oss/" + fileMeta.FileSha1
+		err = oss.Bucket().PutObject(ossPath, newFile)
+		if err != nil {
+			fmt.Println("upload oss:", err.Error())
+			return
+		}
+		fileMeta.Location = ossPath
 		_ = meta.UpdateFileMetaDB(fileMeta)
 
 		// TODO: 写道tbl_user_file
