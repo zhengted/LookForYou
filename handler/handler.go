@@ -69,6 +69,9 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		//_ = bucket.Put(cephPath, data, "octet-stream", s3.PublicRead)
 		//fileMeta.Location = cephPath
 
+		//options := []oss.Option{
+		//	oss.ContentDisposition("attachment;filename=\"" + filename + "\""),
+		//}
 		ossPath := "oss/" + fileMeta.FileSha1
 		err = oss.Bucket().PutObject(ossPath, newFile)
 		if err != nil {
@@ -251,4 +254,22 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(resp.JSONBytes())
 		return
 	}
+}
+
+func DownloadURLHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	filehash := r.Form.Get("filehash")
+
+	row, _ := db.GetFileMeta(filehash)
+
+	// TODO: 判断文件存在OSS还是ceph
+
+	var fileaddr string
+	row.FileAddr.Scan(&fileaddr)
+	signedURL := oss.DownloadURL(fileaddr)
+	if signedURL == "" {
+		w.Write(util.NewRespMsg(-1, "download failed", nil).JSONBytes())
+		return
+	}
+
 }

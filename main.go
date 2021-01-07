@@ -21,6 +21,7 @@ func main() {
 	http.HandleFunc("/file/download", handler.DownloadHandler)
 	http.HandleFunc("/file/fastupload", handler.HTTPInterceptor(
 		handler.TryFastUploadHandler))
+	http.HandleFunc("/file/downloadurl", handler.DownloadURLHandler)
 
 	// 用户相关接口
 	http.HandleFunc("/user/signup", handler.SignupHandler)
