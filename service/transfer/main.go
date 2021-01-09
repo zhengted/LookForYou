@@ -12,9 +12,10 @@ import (
 )
 
 func ProcessTransfer(msg []byte) bool {
+	log.Println(string(msg))
 	// 1. 解析msg
 	pubData := mq.TransferData{}
-	err := json.Unmarshal(msg, pubData)
+	err := json.Unmarshal(msg, &pubData)
 	if err != nil {
 		log.Println(err.Error())
 		return false

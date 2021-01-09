@@ -65,5 +65,6 @@ func Publish(exchange, routingKey string, msg []byte) bool {
 		log.Println(err.Error())
 		return false
 	}
+	log.Println(string(msg))
 	return true
 }
