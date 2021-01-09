@@ -63,7 +63,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		fileMeta.FileSha1 = util.FileSha1(newFile)
 
 		newFile.Seek(0, 0) // 游标重新回到文件头部
-		mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
+		//mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
 		if cfg.CurrentStoreType == cmn.StoreCeph {
 			// 文件写入Ceph存储
 			data, _ := ioutil.ReadAll(newFile)
@@ -91,7 +91,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 				fileMeta.Location = ossPath
 			} else {
 				// 文件尚未转移，暂存于本地mergePath
-				fileMeta.Location = mergePath
+				//fileMeta.Location = mergePath
 				// 写入异步转移任务队列
 				data := mq.TransferData{
 					FileHash:      fileMeta.FileSha1,
