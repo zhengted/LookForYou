@@ -9,8 +9,6 @@
     <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
     <link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
 
-    <link rel="stylesheet" href="/static/css/custom.css">
-
     <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
     <script src="/static/js/bootstrap.min.js"></script>
 
@@ -18,34 +16,32 @@
     <script src="/static/js/layer.js"></script>
 </head>
 
-<body class="home">
-    <div class="home-content">
-        <div class="home-title">
-            我的云盘
-            <button class="btn btn-primary logout" onclick="toLogout()">登出
-            </button>
+<body style="width:100%;height:100%;background:#f8f8f8">
+    <div style="width:100%;height:100%;margin:0 0 10px 0;text-align: center;">
+        <div style="font-size:20px;font-weight:bold;color:#ddd; 
+      margin:0;padding-top:3px;background:#383e4b;height:40px;">
+            文件云盘首页
         </div>
-        <table class="home-table">
+        <table style="height:100%;width:100%;text-align: left;border-width: 2px; border-color: rgb(203, 215, 248);">
             <tbody>
                 <tr style="margin-bottom: 20px;">
-                    <td style="width:15%;height: 100%;">
-                        <div class="account">
-                            <img class="avatar" src="/static/img/avatar.jpg"></img><br>
-                            <span class="font-title">用户名:</span>
-                            <span class="font-content" id="username"></span><br>
-
-                            <span class="font-title">注册时间:</span>
-                            <span class="font-content" id="regtime"></span><br>
+                    <td style="width:15%;height: 100%;background: rgb(138, 186, 248);">
+                        <div style="text-align: top;height:20%;margin: 10px 0 0 10px;">
+                            <img style="width:80px;height:80px;" src="/static/img/avatar.jpeg"></img><br>
+                            用户名: <p id="username" style="color: seagreen"></p>
+                            注册时间: <p id="regtime" style="color: seagreen"></p>
                         </div>
+                        <div style="height: 80%;"></div>
+                    </td>
+                    <td style="width: 3px;height:100%;">
+                        <div style="width:100%;height: 100%;background:rgb(68, 152, 248);"></div>
                     </td>
                     <td style="text-align: top;vertical-align: top;">
                         <div style="width:100%;">
                             <span>文件列表</span>
-                            <button class="btn btn-primary home-button" onclick="toUploadFile()">上传文件
+                            <button class="btn btn-primary" onclick="toUploadFile()" style="margin:5px;">上传文件
                             </button>
-                            <button class="btn btn-primary home-button" onclick="toMPUploadFile()">分块上传文件
-                            </button>
-                            <div class="line-horizon"></div>
+                            <div style="width:100%;height: 1px;background:rgb(48, 143, 252);"></div>
                         </div>
                         <div style="width:100%;">
                             <table id="filetbl" style="margin-left:3%;width:96%;">
@@ -69,25 +65,27 @@
 </body>
 
 <script lang="javascript">
-    window.onload = function() {
+    window.onload = function () {
         var username = document.getElementById('username');
         $.ajax({
             url: "/user/info?" + queryParams(),
             type: "POST",
-            error: function(err) {
+            error: function (err) {
                 alert(JSON.stringify(err));
             },
-            success: function(body) {
+            success: function (body) {
                 var resp = body;
-                if (typeof(resp) == 'string') {
+                if (typeof (resp) == 'string') {
                     resp = JSON.parse(body);
                 }
                 if (resp.code == 10005) {
                     window.location.href = "/static/view/signin.html";
                 }
-                document.getElementById("username").innerHTML = resp.data.Username;
-                document.getElementById("regtime").innerHTML = resp.data.SignupAt;
-                updateFileList();
+                if (resp.data) {
+                    document.getElementById("username").innerHTML = resp.data.Username;
+                    document.getElementById("regtime").innerHTML = resp.data.SignupAt;
+                    updateFileList();
+                }
             }
         });
     }
@@ -99,32 +97,38 @@
             data: {
                 limit: 15
             },
-            error: function(err) {
+            error: function (err) {
                 alert(err);
             },
-            success: function(body) {
+            success: function (body) {
                 if (!body) {
                     return;
                 }
                 var data = body;
-                if (typeof(data) === 'string') {
+                if (typeof (data) === 'string') {
                     data = JSON.parse(data);
                 }
                 if (!data || data.length <= 0) {
                     return;
                 }
 
-                var items =
-                    '<option value="none">-操作选择-</option>' +
-                    '<option value="dl">下载</option>' +
-                    '<option value="rangedl">断点下载</option>' +
-                    '<option value="rename">重命名</option>' +
-                    '<option value="del">删除</option>';
+                var downloadHtml = '<button class="btn btn-info" ' +
+                    'style="height:30px;margin:5px 3px;"' +
+                    'onClick = "downloadFile(\''+serverHost+'/file/' + 
+                    'downloadurl?filehash={0}&{1}\')">下载</button>';
+                var renameFileHtml = '<button class="btn btn-warning" ' +
+                    'style="height:30px;margin:5px 3px;"' +
+                    'onClick = "renameFile(\'{0}\',\'{1}\',\''+serverHost+'/file/' +
+                    'update?op=0&filehash={2}&{3}\')">重命名</button>';
+                var cdlFileHtml = '<button class="btn btn-info" ' +
+                    'style="height:30px;margin:5px 3px;"' +
+                    'onClick = "cdlFile(\''+serverHost+'/file/' +
+                    'download/range?filehash={0}&{1}\')">断点下载(火狐)</button>';
 
                 for (var i = 0; i < data.length; i++) {
                     var x = document.getElementById('filetbl').insertRow();
                     var cell = x.insertCell();
-                    cell.innerHTML = data[i].FileHash;
+                    cell.innerHTML = data[i].FileHash.substr(0, 20) + "...";
 
                     cell = x.insertCell();
                     cell.innerHTML = data[i].FileName;
@@ -139,67 +143,35 @@
                     cell.innerHTML = data[i].LastUpdated;
 
                     cell = x.insertCell();
-                    var opselect = `<select class="item-select" onchange="itemChanged(this, ` +
-                        `'${data[i].FileHash}', '${data[i].FileName}');">${items}</select>`;
-                    cell.innerHTML = opselect;
+                    cell.innerHTML = downloadHtml.format(data[i].FileHash, queryParams()) + cdlFileHtml
+                        .format(data[i].FileHash, queryParams()) +
+                        renameFileHtml.format(data[i].FileHash, data[i].FileName, data[i].FileHash,
+                            queryParams());
                 }
             }
         });
-    }
-
-    function itemChanged(item, filehash, filename) {
-        if (item.options[0].selected) {
-            return;
-        }
-        var evt = item.value;
-        var pathMap = new Map([
-            ['dl', '/file/downloadurl'],
-            ['rangedl', '/file/download/range'],
-            ['rename', '/file/update'],
-            ['del', '/file/delete'],
-        ]);
-        var host = 'http://49.234.178.60:8080';
-        var path = pathMap.get(evt);
-        var url = `${host}${path}?filehash={0}&{1}`.format(filehash, queryParams());
-        if (evt == 'dl') {
-            downloadFile(url);
-        } else if (evt == 'rangedl') {
-            cdlFile(url);
-        } else if (evt == 'rename') {
-            renameFile(filehash, filename, url);
-        } else if (evt == 'del') {
-            deleteFile(url, filename);
-        }
-
-        item.options[0].selected = true;
     }
 
     function toUploadFile() {
         window.location.href = '/file/upload?' + queryParams();
     }
 
-    function toMPUploadFile() {
-        window.location.href = '/static/view/mpupload.html';
-    }
-
-    function toLogout() {
-        logout();
-    }
-
     function downloadFile(durl) {
         $.ajax({
             url: durl,
             type: "POST",
-            error: function(err) {
+            error: function (err) {
                 alert(err);
             },
-            success: function(body) {
+            success: function (body) {
                 try {
-                    alert("文件即将下载自: " + body);
-                    var elemIF = document.createElement("iframe");
-                    elemIF.src = body;
-                    elemIF.style.display = "none";
-                    document.body.appendChild(elemIF);
+                    alert("文件即将下载自: \n" + body);
+                    if (body.indexOf('http:') == 0) {
+                        var elemIF = document.createElement("iframe");
+                        elemIF.src = body;
+                        elemIF.style.display = "none";
+                        document.body.appendChild(elemIF);
+                    }
                 } catch (e) {
                     alert(e);
                 }
@@ -221,45 +193,27 @@
 
     function renameFile(filehash, filename, renameUrl) {
         var newFileName = prompt("\n当前文件名: {0}\n\n请输入新的文件名: ".format(filename));
-        if (newFileName) {
-            newFileName = newFileName.trim();
+        if (newFileName == null) {
+            return;
         }
-
-        if (!newFileName || newFileName.length <= 0) {
+        newFileName = newFileName.trim();
+        if (newFileName.length <= 0) {
             alert("文件名不能为空");
             return;
         }
-
         if (newFileName.indexOf(" ") >= 0) {
             alert("文件名不能包含空格");
             return;
         }
 
         $.ajax({
-            url: renameUrl + "&op=0&filename=" + newFileName,
+            url: renameUrl + "&filename=" + newFileName,
             type: "POST",
-            error: function(msg) {
+            error: function (msg) {
                 alert(msg);
             },
-            success: function(body) {
+            success: function (body) {
                 alert("文件名修改成功");
-                window.location.href = '/static/view/home.html';
-            }
-        });
-    }
-
-    function deleteFile(url, filename) {
-        if (!confirm("是否确定删除文件: " + filename)) {
-            return;
-        }
-        $.ajax({
-            url: url,
-            type: "POST",
-            error: function(err) {
-                alert(err);
-            },
-            success: function(body) {
-                alert("文件已删除");
                 window.location.href = '/static/view/home.html';
             }
         });

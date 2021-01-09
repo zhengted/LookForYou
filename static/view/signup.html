@@ -8,7 +8,6 @@
 
     <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
     <link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
-    <link rel="stylesheet" href="/static/css/custom.css">
 
     <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
     <script src="/static/js/bootstrap.min.js"></script>
@@ -66,7 +65,8 @@
                         <td>
                         </td>
                         <td>
-                            <input class="btn btn-success" type="button" style="margin:0 auto;width:250px;" value="点击注册" onclick='onSignup()' />
+                            <input class="btn btn-success" type="button" style="margin:0 auto;width:250px;" value="点击注册"
+                                onclick='onSignup()' />
                             <label name='login_hint' id='login_hint' style='display:none'>注册成功，２秒后跳转到登录页面...</label>
                         </td>
                     </tr>
@@ -101,10 +101,10 @@
                 "username": username.value,
                 "password": password.value
             },
-            error: function(err) {
+            error: function (err) {
                 alert(textStatus);
             },
-            success: function(data) {
+            success: function (data) {
                 if (data == 'SUCCESS') {
                     // 成功后跳到登录页
                     document.getElementById("login_hint").style.display = "block";

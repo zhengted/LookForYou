@@ -1,21 +1,15 @@
-var serverHost = "http://49.234.178.60:8080";
+var serverHost = "http://localhost:8080";
 
 function queryParams() {
     var username = localStorage.getItem("username");
     var token = localStorage.getItem("token");
-    return "username=" + username + "&token=" + token;
+    return 'username=' + username + '&token=' + token;
 }
 
-function logout() {
-    localStorage.removeItem("username");
-    localStorage.removeItem("token");
-    window.location = "/static/view/signin.html";
-}
-
-String.prototype.format = function(args) {
+String.prototype.format = function (args) {
     var result = this;
     if (arguments.length > 0) {
-        if (arguments.length == 1 && typeof args == "object") {
+        if (arguments.length == 1 && typeof (args) == "object") {
             for (var key in args) {
                 if (args[key] != undefined) {
                     var reg = new RegExp("({" + key + "})", "g");
@@ -32,4 +26,4 @@ String.prototype.format = function(args) {
         }
     }
     return result;
-};
+}

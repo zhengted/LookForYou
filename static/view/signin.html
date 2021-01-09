@@ -8,7 +8,6 @@
 
     <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
     <link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
-    <link rel="stylesheet" href="/static/css/custom.css">
 
     <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
     <script src="/static/js/bootstrap.min.js"></script>
@@ -53,7 +52,8 @@
                         <td>
                         </td>
                         <td>
-                            <input class="btn btn-success" type="button" style="margin:0 auto;width:250px;" value="登录" onclick='onSignin()' />
+                            <input class="btn btn-success" type="button" style="margin:0 auto;width:250px;" value="登录"
+                                onclick='onSignin()' />
                         </td>
                     </tr>
                 </tbody>
@@ -73,14 +73,16 @@
                 "username": username.value,
                 "password": password.value
             },
-            error: function(err) {
+            error: function (err) {
                 alert(err);
             },
-            success: function(body) {
+            success: function (body) {
                 var resp = JSON.parse(body);
                 localStorage.setItem("token", resp.data.Token)
                 localStorage.setItem("username", resp.data.Username)
-                window.location.href = resp.data.Location;
+                setTimeout(()=>{
+                    window.location.href = resp.data.Location;
+                }, 200);
             }
         });
     }

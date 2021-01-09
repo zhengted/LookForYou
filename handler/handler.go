@@ -1,8 +1,12 @@
 package handler
 
 import (
+	cmn "LookForYou/common"
+	cfg "LookForYou/config"
 	"LookForYou/db"
 	"LookForYou/meta"
+	"LookForYou/mq"
+	"LookForYou/store/ceph"
 	"LookForYou/store/oss"
 	"LookForYou/util"
 	"encoding/json"
@@ -59,29 +63,56 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		newFile.Seek(0, 0)
 		fileMeta.FileSha1 = util.FileSha1(newFile)
-		fmt.Println(fileMeta.FileSha1)
-
-		// 同时将文件写入ceph存储
-		newFile.Seek(0, 0)
-		//data, _ := ioutil.ReadAll(newFile)
-		//bucket := ceph.GetCephBucket("userfile")
-		//cephPath := "/ceph/" + fileMeta.FileSha1
-		//_ = bucket.Put(cephPath, data, "octet-stream", s3.PublicRead)
-		//fileMeta.Location = cephPath
-
-		//options := []oss.Option{
-		//	oss.ContentDisposition("attachment;filename=\"" + filename + "\""),
-		//}
-		ossPath := "oss/" + fileMeta.FileSha1
-		err = oss.Bucket().PutObject(ossPath, newFile)
-		if err != nil {
-			fmt.Println("upload oss:", err.Error())
-			return
+		mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
+		if cfg.CurrentStoreType == cmn.StoreCeph {
+			// 文件写入Ceph存储
+			data, _ := ioutil.ReadAll(newFile)
+			cephPath := "/ceph/" + fileMeta.FileSha1
+			err = ceph.PutObject("userfile", cephPath, data)
+			if err != nil {
+				fmt.Println("upload ceph err: " + err.Error())
+				w.Write([]byte("Upload failed!"))
+				return
+			}
+			fileMeta.Location = cephPath
+		} else if cfg.CurrentStoreType == cmn.StoreOSS {
+			// 文件写入OSS存储
+			ossPath := "oss/" + fileMeta.FileSha1
+			// 判断写入OSS为同步还是异步
+			if !cfg.AsyncTransferEnable {
+				// 文件写入OSS存储
+				ossPath := "oss/" + fileMeta.FileSha1
+				err = oss.Bucket().PutObject(ossPath, newFile)
+				if err != nil {
+					fmt.Println("upload oss err: " + err.Error())
+					w.Write([]byte("Upload failed!"))
+					return
+				}
+				fileMeta.Location = ossPath
+			} else {
+				// 文件尚未转移，暂存于本地mergePath
+				fileMeta.Location = mergePath
+				// 写入异步转移任务队列
+				data := mq.TransferData{
+					FileHash:      fileMeta.FileSha1,
+					CurLocation:   fileMeta.Location,
+					DestLocation:  ossPath,
+					DestStoreType: cmn.StoreOSS,
+				}
+				pubData, _ := json.Marshal(data)
+				pubSuc := mq.Publish(
+					cfg.TransExchangeName,
+					cfg.TransOssRoutingKey,
+					pubData,
+				)
+				if !pubSuc {
+					// TODO: 当前发送转移信息失败，稍后重试
+				}
+			}
 		}
-		fileMeta.Location = ossPath
 		_ = meta.UpdateFileMetaDB(fileMeta)
 
-		// TODO: 写道tbl_user_file
+		// 写到tbl_user_file
 		r.ParseForm()
 		username := r.Form.Get("username")
 
