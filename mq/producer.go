@@ -51,7 +51,7 @@ func initChannel() bool {
 }
 
 func Publish(exchange, routingKey string, msg []byte) bool {
-	if initChannel() {
+	if !initChannel() {
 		return false
 	}
 
