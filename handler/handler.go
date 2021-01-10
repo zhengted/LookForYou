@@ -11,249 +11,307 @@ import (
 	"LookForYou/util"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // 处理文件上传
-func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		// 返回上传的html页面
-		data, err := ioutil.ReadFile("./static/view/index.html")
+func UploadHandler(c *gin.Context) {
+	data, err := ioutil.ReadFile("./static/view/upload.html")
+	if err != nil {
+		c.String(404, `网页不存在`)
+		return
+	}
+	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+}
+
+func DoUploadHandler(c *gin.Context) {
+	errCode := 0
+	defer func() {
+		if errCode < 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"code": errCode,
+				"msg":  "Upload failed",
+			})
+		}
+	}()
+
+	// 接受文件流及存储到本地目录
+	file, head, err := c.Request.FormFile("file")
+	if err != nil {
+		fmt.Printf("Failed to get data, err:%s\n", err.Error())
+		errCode = -1
+		return
+	}
+	defer file.Close()
+
+	tmpPath := cfg.TempLocalRootDir + head.Filename
+	fileMeta := meta.FileMeta{
+		FileName: head.Filename,
+		Location: tmpPath,
+		UploadAt: time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	newFile, err := os.Create(fileMeta.Location)
+	if err != nil {
+		fmt.Printf("Failed to create file, err:%s\n", err.Error())
+		errCode = -2
+		return
+	}
+	defer newFile.Close()
+
+	fileMeta.FileSize, err = io.Copy(newFile, file)
+	if err != nil {
+		fmt.Printf("Failed to save data into file, err:%s\n", err.Error())
+		errCode = -3
+		return
+	}
+
+	newFile.Seek(0, 0)
+	fileMeta.FileSha1 = util.FileSha1(newFile)
+
+	newFile.Seek(0, 0) // 游标重新回到文件头部
+	//mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
+	if cfg.CurrentStoreType == cmn.StoreCeph {
+		// 文件写入Ceph存储
+		data, _ := ioutil.ReadAll(newFile)
+		cephPath := "/ceph/" + fileMeta.FileSha1
+		err = ceph.PutObject("userfile", cephPath, data)
 		if err != nil {
-			io.WriteString(w, "internal server error")
+			fmt.Println("upload ceph: " + err.Error())
+			errCode = -4
 			return
 		}
-		io.WriteString(w, string(data))
-	} else if r.Method == "POST" {
-		// 接受文件流及存储到本地目录
-		file, head, err := r.FormFile("file")
-		if err != nil {
-			fmt.Printf("Failed to get data, err:%s\n", err.Error())
-			return
-		}
-		defer file.Close()
-
-		tmpPath := cfg.TempLocalRootDir + head.Filename
-		fileMeta := meta.FileMeta{
-			FileName: head.Filename,
-			Location: tmpPath,
-			UploadAt: time.Now().Format("2006-01-02 15:04:05"),
-		}
-
-		newFile, err := os.Create(fileMeta.Location)
-		if err != nil {
-			fmt.Printf("Failed to create file, err:%s\n", err.Error())
-			return
-		}
-		defer newFile.Close()
-
-		fileMeta.FileSize, err = io.Copy(newFile, file)
-		if err != nil {
-			fmt.Printf("Failed to save data into file, err:%s\n", err.Error())
-			return
-		}
-
-		newFile.Seek(0, 0)
-		fileMeta.FileSha1 = util.FileSha1(newFile)
-
-		newFile.Seek(0, 0) // 游标重新回到文件头部
-		//mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
-		if cfg.CurrentStoreType == cmn.StoreCeph {
-			// 文件写入Ceph存储
-			data, _ := ioutil.ReadAll(newFile)
-			cephPath := "/ceph/" + fileMeta.FileSha1
-			err = ceph.PutObject("userfile", cephPath, data)
-			if err != nil {
-				fmt.Println("upload ceph err: " + err.Error())
-				w.Write([]byte("Upload failed!"))
-				return
-			}
-			fileMeta.Location = cephPath
-		} else if cfg.CurrentStoreType == cmn.StoreOSS {
+		fileMeta.Location = cephPath
+	} else if cfg.CurrentStoreType == cmn.StoreOSS {
+		// 文件写入OSS存储
+		ossPath := "oss/" + fileMeta.FileSha1
+		// 判断写入OSS为同步还是异步
+		if !cfg.AsyncTransferEnable {
 			// 文件写入OSS存储
 			ossPath := "oss/" + fileMeta.FileSha1
-			// 判断写入OSS为同步还是异步
-			if !cfg.AsyncTransferEnable {
-				// 文件写入OSS存储
-				ossPath := "oss/" + fileMeta.FileSha1
-				err = oss.Bucket().PutObject(ossPath, newFile)
-				if err != nil {
-					fmt.Println("upload oss err: " + err.Error())
-					w.Write([]byte("Upload failed!"))
-					return
-				}
-				fileMeta.Location = ossPath
-			} else {
-				// 文件尚未转移，暂存于本地mergePath
-				//fileMeta.Location = mergePath
-				// 写入异步转移任务队列
-				data := mq.TransferData{
-					FileHash:      fileMeta.FileSha1,
-					CurLocation:   fileMeta.Location,
-					DestLocation:  ossPath,
-					DestStoreType: cmn.StoreOSS,
-				}
-				pubData, _ := json.Marshal(data)
-				pubSuc := mq.Publish(
-					cfg.TransExchangeName,
-					cfg.TransOssRoutingKey,
-					pubData,
-				)
-				if !pubSuc {
-					// TODO: 当前发送转移信息失败，稍后重试
-				}
+			err = oss.Bucket().PutObject(ossPath, newFile)
+			if err != nil {
+				fmt.Println("upload oss: " + err.Error())
+				errCode = -5
+				return
+			}
+			fileMeta.Location = ossPath
+		} else {
+			// 文件尚未转移，暂存于本地mergePath
+			//fileMeta.Location = mergePath
+			// 写入异步转移任务队列
+			data := mq.TransferData{
+				FileHash:      fileMeta.FileSha1,
+				CurLocation:   fileMeta.Location,
+				DestLocation:  ossPath,
+				DestStoreType: cmn.StoreOSS,
+			}
+			pubData, _ := json.Marshal(data)
+			pubSuc := mq.Publish(
+				cfg.TransExchangeName,
+				cfg.TransOssRoutingKey,
+				pubData,
+			)
+			if !pubSuc {
+				// TODO: 当前发送转移信息失败，稍后重试
 			}
 		}
-		_ = meta.UpdateFileMetaDB(fileMeta)
+	}
+	_ = meta.UpdateFileMetaDB(fileMeta)
 
-		// 写到tbl_user_file
-		r.ParseForm()
-		username := r.Form.Get("username")
+	// 写到tbl_user_file
+	username := c.Request.FormValue("username")
 
-		suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize)
-		if suc {
-			http.Redirect(w, r, "/static/view/home.html", http.StatusFound) // 这里写错了一次，file前面的“/”没加上
-		} else {
-			w.Write([]byte("Upload Failed."))
-		}
-
+	suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize)
+	if suc {
+		c.Redirect(http.StatusFound, "/static/view/home.html")
+	} else {
+		errCode = -6
 	}
 }
 
 // UploadSucHandler : 上传已完成
-func UploadSucHandler(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "Upload finished!")
+func UploadSucHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"msg":  "Upload finished!",
+		"code": 0,
+	})
 }
 
 // GetFileMetaHandler: 获取文件元信息
-func GetFileMetaHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // 解析form数据
-	filehash := r.Form["filehash"][0]
+func GetFileMetaHandler(c *gin.Context) {
+	filehash := c.Request.FormValue("filehash")
 	fMeta, err := meta.GetFileMetaDB(filehash)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"code": -2,
+				"msg":  "Upload failed!",
+			})
 		return
 	}
-	bytes, err := json.Marshal(fMeta)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+
+	if fMeta != (meta.FileMeta{}) {
+		data, err := json.Marshal(fMeta)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{
+					"code": -3,
+					"msg":  "Upload failed!",
+				})
+			return
+		}
+		c.Data(http.StatusOK, "application/json", data)
+	} else {
+		c.JSON(http.StatusOK,
+			gin.H{
+				"code": -4,
+				"msg":  "No such file",
+			})
 	}
-	w.Write(bytes)
 }
 
 // FileQueryHandler: 查询批量的文件元信息
-func FileQueryHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	limitCnt, _ := strconv.Atoi(r.Form.Get("limit"))
-	username := r.Form.Get("username")
+func FileQueryHandler(c *gin.Context) {
+	limitCnt, _ := strconv.Atoi(c.Request.FormValue("limit"))
+	username := c.Request.FormValue("username")
 	//fileMetas := meta.GetLastFileMetas(limitCnt)
 	fileMetas, err := db.QueryUserFileMetas(username, limitCnt)
 	if err != nil {
 		log.Println(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"code": -1,
+				"msg":  "File Query failed!",
+			})
 		return
 	}
 	bytes, err := json.Marshal(fileMetas)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err.Error())
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"code": -2,
+				"msg":  "File Query failed!",
+			})
 		return
 	}
-	w.Write(bytes)
+	c.Data(http.StatusOK, "application/json", bytes)
 
 }
 
-func DownloadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	fsha1 := r.Form.Get("filehash")
-	fm := meta.GetFileMeta(fsha1)
-	f, err := os.Open(fm.Location)
+func DownloadHandler(c *gin.Context) {
+	fsha1 := c.Request.FormValue("filehash")
+	username := c.Request.FormValue("username")
+	fm, err := meta.GetFileMetaDB(fsha1)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err.Error())
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"code": -1,
+				"msg":  "Download failed!",
+			})
 		return
 	}
-	defer f.Close()
-
-	data, err := ioutil.ReadAll(f)
+	userFile, err := db.QueryUserFileMeta(username, fsha1)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err.Error())
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"code": -2,
+				"msg":  "Download failed!",
+			})
 		return
 	}
-	w.Header().Set("Content-Type", "application/octect-stream")
-	w.Header().Set("Content-Disposition", "attachment;filename=\""+fm.FileName+"\"")
+	if strings.HasPrefix(fm.Location, cfg.TempLocalRootDir) {
+		// 本地存储，直接下载
+		c.FileAttachment(fm.Location, userFile.FileName)
+	} else if strings.HasPrefix(fm.Location, cfg.CephRootDir) {
+		// ceph中的文件 通过ceph的API下载
+		bucket := ceph.GetCephBucket("userfile")
+		data, _ := bucket.Get(fm.Location)
 
-	w.Write(data)
+		c.Header("content-disposition", "attachment; filename=\""+userFile.FileName+"\"")
+		c.Data(http.StatusOK, "application/octect-stream", data)
+	}
 }
 
-// FileMetaUpdateHandler:修改文件名
-func FileMetaUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-	r.ParseForm()
+// FileMetaUpdateHandler:修改文件名 POST
+func FileMetaUpdateHandler(c *gin.Context) {
+	opType := c.Request.FormValue("op")
+	fileSha1 := c.Request.FormValue("filehash")
+	newFileName := c.Request.FormValue("filename")
+	username := c.Request.FormValue("username")
 
-	opType := r.Form.Get("op")
-	fileSha1 := r.Form.Get("filehash")
-	newFileName := r.Form.Get("filename")
-
-	if opType != "0" {
-		w.WriteHeader(http.StatusForbidden)
+	if opType != "0" || len(newFileName) < 1 {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
-	curFileMeta := meta.GetFileMeta(fileSha1)
-	curFileMeta.FileName = newFileName
-	meta.UpdateFileMeta(curFileMeta)
+	// 更新用户文件表的tbl_user_file中的文件名，tbl_file的文件名不用修改
+	_ = db.RenameFileName(username, fileSha1, newFileName)
 
-	data, err := json.Marshal(curFileMeta)
+	userFile, err := db.QueryUserFileMeta(username, fileSha1)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-type", "application/json")
-	w.Write(data)
+
+	data, err := json.Marshal(userFile)
+	if err != nil {
+		log.Println(err.Error())
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	c.JSON(http.StatusOK, data)
 }
 
 // FileDeleteHandler: 删除文件及其元信息
-func FileDeleteHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	fileSha1 := r.Form.Get("filehash")
+func FileDeleteHandler(c *gin.Context) {
+	username := c.Request.FormValue("username")
+	fileSha1 := c.Request.FormValue("filehash")
 
-	fMeta := meta.GetFileMeta(fileSha1)
-	os.Remove(fMeta.Location)
-	if !meta.RemoveFileDB(fileSha1) {
-		log.Println("FileDeleteHandler Remove file in db failed", fileSha1)
-		w.WriteHeader(http.StatusInternalServerError)
+	fMeta, err := meta.GetFileMetaDB(fileSha1)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
 		return
 	}
-	meta.RemoveFileMeta(fileSha1)
+	// 删除本地文件
+	os.Remove(fMeta.Location)
 
-	w.WriteHeader(http.StatusOK)
+	// 删除文件表中的一条记录
+	suc := db.DeleteUserFile(username, fileSha1)
+	if !suc {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
 
 // TryFastUploadHandler: 尝试秒传接口
-func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+func TryFastUploadHandler(c *gin.Context) {
 	// 1. 解析请求参数
-	username := r.Form.Get("username")
-	filehash := r.Form.Get("filehash")
-	filename := r.Form.Get("filename")
-	filesize, _ := strconv.Atoi(r.Form.Get("filesize"))
+	username := c.Request.FormValue("username")
+	filehash := c.Request.FormValue("filehash")
+	filename := c.Request.FormValue("filename")
+	filesize, _ := strconv.Atoi(c.Request.FormValue("filesize"))
 
 	// 2. 从文件表中查询相同hash的文件记录
 	filemeta, err := meta.GetFileMetaDB(filehash)
 	if err != nil {
 		log.Println(err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 	// 3. 查不到记录则返回秒传失败
@@ -263,7 +321,7 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 			"秒传失败，请访问普通上传接口",
 			"Fuck",
 		}
-		w.Write(resp.JSONBytes())
+		c.Data(http.StatusOK, "application/json", resp.JSONBytes())
 		return
 	}
 	// 4. 上传过则将文件信息写入用户文件表，返回成功
@@ -274,7 +332,7 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 			"秒传成功",
 			"Suck",
 		}
-		w.Write(resp.JSONBytes())
+		c.Data(http.StatusOK, "application/json", resp.JSONBytes())
 		return
 	} else {
 		resp := util.RespMsg{
@@ -282,25 +340,28 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 			"秒传失败，请稍后重试",
 			"Shit",
 		}
-		w.Write(resp.JSONBytes())
+		c.Data(http.StatusOK, "application/json", resp.JSONBytes())
 		return
 	}
 }
 
-func DownloadURLHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	filehash := r.Form.Get("filehash")
+func DownloadURLHandler(c *gin.Context) {
+	filehash := c.Request.FormValue("filehash")
 
 	row, _ := db.GetFileMeta(filehash)
 
-	// TODO: 判断文件存在OSS还是ceph
-
-	var fileaddr string
-	row.FileAddr.Scan(&fileaddr)
-	signedURL := oss.DownloadURL(fileaddr)
-	if signedURL == "" {
-		w.Write(util.NewRespMsg(-1, "download failed", nil).JSONBytes())
-		return
+	// TODO: 判断文件存在OSS，还是Ceph，还是在本地
+	if strings.HasPrefix(row.FileAddr.String, cfg.TempLocalRootDir) ||
+		strings.HasPrefix(row.FileAddr.String, cfg.CephRootDir) {
+		username := c.Request.FormValue("username")
+		token := c.Request.FormValue("token")
+		tmpURL := fmt.Sprintf("http://%s/file/download?filehash=%s&username=%s&token=%s",
+			c.Request.Host, filehash, username, token)
+		c.Data(http.StatusOK, "octet-stream", []byte(tmpURL))
+	} else if strings.HasPrefix(row.FileAddr.String, "oss/") {
+		// oss下载url
+		signedURL := oss.DownloadURL(row.FileAddr.String)
+		fmt.Println(row.FileAddr.String)
+		c.Data(http.StatusOK, "octet-stream", []byte(signedURL))
 	}
-	w.Write([]byte(signedURL))
 }
