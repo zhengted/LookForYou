@@ -9,6 +9,7 @@ import (
 	"LookForYou/store/ceph"
 	"LookForYou/store/oss"
 	"LookForYou/util"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,7 @@ func UploadHandler(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 }
 
+// DoUploadHandler ： 处理文件上传
 func DoUploadHandler(c *gin.Context) {
 	errCode := 0
 	defer func() {
@@ -43,70 +45,70 @@ func DoUploadHandler(c *gin.Context) {
 		}
 	}()
 
-	// 接受文件流及存储到本地目录
+	// 1. 从form表单中获得文件内容句柄
 	file, head, err := c.Request.FormFile("file")
 	if err != nil {
-		fmt.Printf("Failed to get data, err:%s\n", err.Error())
+		fmt.Printf("Failed to get form data, err:%s\n", err.Error())
 		errCode = -1
 		return
 	}
 	defer file.Close()
 
-	tmpPath := cfg.TempLocalRootDir + head.Filename
+	// 2. 把文件内容转为[]byte
+	buf := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buf, file); err != nil {
+		fmt.Printf("Failed to get file data, err:%s\n", err.Error())
+		errCode = -2
+		return
+	}
+
+	// 3. 构建文件元信息
 	fileMeta := meta.FileMeta{
 		FileName: head.Filename,
-		Location: tmpPath,
+		FileSha1: util.Sha1(buf.Bytes()), //　计算文件sha1
+		FileSize: int64(len(buf.Bytes())),
 		UploadAt: time.Now().Format("2006-01-02 15:04:05"),
 	}
 
+	// 4. 将文件写入临时存储位置
+	fileMeta.Location = cfg.TempLocalRootDir + fileMeta.FileSha1 // 临时存储地址
 	newFile, err := os.Create(fileMeta.Location)
 	if err != nil {
 		fmt.Printf("Failed to create file, err:%s\n", err.Error())
-		errCode = -2
+		errCode = -3
 		return
 	}
 	defer newFile.Close()
 
-	fileMeta.FileSize, err = io.Copy(newFile, file)
-	if err != nil {
-		fmt.Printf("Failed to save data into file, err:%s\n", err.Error())
-		errCode = -3
+	nByte, err := newFile.Write(buf.Bytes())
+	if int64(nByte) != fileMeta.FileSize || err != nil {
+		fmt.Printf("Failed to save data into file, writtenSize:%d, err:%s\n", nByte, err.Error())
+		errCode = -4
 		return
 	}
 
-	newFile.Seek(0, 0)
-	fileMeta.FileSha1 = util.FileSha1(newFile)
-
+	// 5. 同步或异步将文件转移到Ceph/OSS
 	newFile.Seek(0, 0) // 游标重新回到文件头部
-	//mergePath := cfg.MergeLocalRootDir + fileMeta.FileSha1
 	if cfg.CurrentStoreType == cmn.StoreCeph {
 		// 文件写入Ceph存储
 		data, _ := ioutil.ReadAll(newFile)
 		cephPath := "/ceph/" + fileMeta.FileSha1
-		err = ceph.PutObject("userfile", cephPath, data)
-		if err != nil {
-			fmt.Println("upload ceph: " + err.Error())
-			errCode = -4
-			return
-		}
+		_ = ceph.PutObject("userfile", cephPath, data)
 		fileMeta.Location = cephPath
 	} else if cfg.CurrentStoreType == cmn.StoreOSS {
 		// 文件写入OSS存储
 		ossPath := "oss/" + fileMeta.FileSha1
 		// 判断写入OSS为同步还是异步
 		if !cfg.AsyncTransferEnable {
-			// 文件写入OSS存储
-			ossPath := "oss/" + fileMeta.FileSha1
+			// TODO: 设置oss中的文件名，方便指定文件名下载
 			err = oss.Bucket().PutObject(ossPath, newFile)
 			if err != nil {
-				fmt.Println("upload oss: " + err.Error())
+				fmt.Println(err.Error())
 				errCode = -5
 				return
 			}
 			fileMeta.Location = ossPath
 		} else {
-			// 文件尚未转移，暂存于本地mergePath
-			//fileMeta.Location = mergePath
 			// 写入异步转移任务队列
 			data := mq.TransferData{
 				FileHash:      fileMeta.FileSha1,
@@ -125,12 +127,14 @@ func DoUploadHandler(c *gin.Context) {
 			}
 		}
 	}
+
+	//6.  更新文件表记录
 	_ = meta.UpdateFileMetaDB(fileMeta)
 
-	// 写到tbl_user_file
+	// 7. 更新用户文件表
 	username := c.Request.FormValue("username")
-
-	suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1, fileMeta.FileName, fileMeta.FileSize)
+	suc := db.OnUserFileUploadFinished(username, fileMeta.FileSha1,
+		fileMeta.FileName, fileMeta.FileSize)
 	if suc {
 		c.Redirect(http.StatusFound, "/static/view/home.html")
 	} else {
