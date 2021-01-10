@@ -92,6 +92,7 @@ func QueryUserFileMeta(username string, filesha1 string) (*UserFile, error) {
 	return &ufile, nil
 }
 
+// RenameFileName : 文件重命名
 func RenameFileName(username, filehash, filename string) bool {
 	stmt, err := mydb.DBConn().Prepare(
 		"update tbl_user_file set file_name=? where user_name=? and file_sha1=? limit 1")
