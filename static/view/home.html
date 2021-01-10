@@ -107,7 +107,7 @@
           return;
         }
 
-        var dlHost = 'http://localhost:8080';
+        var dlHost = 'http://49.234.178.60:8080';
         var dlEntry = localStorage.getItem('downloadEntry');
         if (dlEntry != '') {
           dlHost = 'http://' + dlEntry;
@@ -118,7 +118,7 @@
           'onClick = "downloadFile(\'' + dlHost + '/file/downloadurl?filehash={0}&{1}\')">下载</button>';
         var renameFileHtml = '<button class="btn btn-warning" ' +
           'style="height:30px;margin:5px 3px;"' +
-          'onClick = "renameFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/' +
+          'onClick = "renameFile(\'{0}\',\'{1}\',\'http://49.234.178.60:8080/file/' +
           'update?op=0&filehash={2}&{3}\')">重命名</button>';
         var cdlFileHtml = '<button class="btn btn-info" ' +
           'style="height:30px;margin:5px 3px;"' +
