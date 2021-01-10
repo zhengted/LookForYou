@@ -1,6 +1,7 @@
 package handler
 
 import (
+	cfg "LookForYou/config"
 	dblayer "LookForYou/db"
 	"LookForYou/util"
 	"fmt"
@@ -8,11 +9,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-)
-
-const (
-	pwd_salt   = "#890"
-	token_salt = "_tokensalt"
 )
 
 func SignupHandler(c *gin.Context) {
@@ -30,7 +26,7 @@ func DoSignupHandler(c *gin.Context) {
 		})
 		return
 	}
-	encPasswd := util.Sha1([]byte(passwd + pwd_salt))
+	encPasswd := util.Sha1([]byte(passwd + cfg.PWD_salt))
 	suc := dblayer.UserSignup(username, encPasswd)
 	if suc {
 		c.JSON(http.StatusOK, gin.H{
@@ -54,7 +50,7 @@ func DoSignInHandler(c *gin.Context) {
 	username := c.Request.FormValue("username")
 	passwd := c.Request.FormValue("password")
 
-	encPasswd := util.Sha1([]byte(passwd + pwd_salt))
+	encPasswd := util.Sha1([]byte(passwd + cfg.PWD_salt))
 	// 1. 校验用户名及密码
 	pwdChecked := dblayer.UserSignin(username, encPasswd)
 	if pwdChecked == false {
@@ -117,7 +113,7 @@ func UserInfoHandler(c *gin.Context) {
 func GenToken(username string) string {
 	// md5(username+timestamp+token_salt)+timestamp[:8]
 	ts := fmt.Sprintf("%x", time.Now().Unix())
-	tokenPrefix := util.MD5([]byte(username + ts + token_salt))
+	tokenPrefix := util.MD5([]byte(username + ts + cfg.Token_salt))
 	return tokenPrefix + ts[:8]
 }
 
