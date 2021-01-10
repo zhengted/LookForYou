@@ -49,7 +49,7 @@
     var upUrl = "/file/upload?" + queryParams();
     var upEntry = localStorage.getItem("uploadEntry");
     if (upEntry != "") {
-      upUrl = "http://" + upEntry + "/file/upload?" + queryParams();
+      upUrl = "http://49.234.178.60:8080/file/upload?" + queryParams();
     }
     $.ajax({
       url: upUrl,

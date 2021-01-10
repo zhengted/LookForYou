@@ -110,7 +110,7 @@
         var dlHost = 'http://49.234.178.60:8080';
         var dlEntry = localStorage.getItem('downloadEntry');
         if (dlEntry != '') {
-          dlHost = 'http://' + dlEntry;
+          dlHost = dlHost+ dlEntry;
         }
 
         var downloadHtml = '<button class="btn btn-info" ' +
