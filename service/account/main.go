@@ -16,7 +16,6 @@ func main() {
 		micro.RegisterInterval(time.Second*5),
 	)
 	service.Init()
-
 	proto.RegisterUserServiceHandler(service.Server(), new(handler.User))
 
 	if err := service.Run(); err != nil {

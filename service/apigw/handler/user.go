@@ -1,7 +1,9 @@
 package handler
 
 import (
+	cmn "LookForYou/common"
 	"LookForYou/service/account/proto"
+	"LookForYou/util"
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/micro/go-micro"
@@ -44,4 +46,44 @@ func DoSignupHandler(c *gin.Context) {
 		"code": resp.Code,
 		"msg":  resp.Message,
 	})
+}
+
+func SigninHandler(c *gin.Context) {
+	c.Redirect(http.StatusFound, "/static/view/signin.html")
+}
+
+func DoSigninHandler(c *gin.Context) {
+	username := c.Request.FormValue("username")
+	passwd := c.Request.FormValue("password")
+	rpcResp, err := userCli.Signin(context.TODO(), &proto.ReqSignin{
+		Username: username,
+		Password: passwd,
+	})
+	if err != nil {
+		log.Println(err.Error())
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	if rpcResp.Code != cmn.StatusOK {
+		c.JSON(200, gin.H{
+			"msg":  "登录失败",
+			"code": rpcResp.Code,
+		})
+		return
+	}
+
+	cliResp := util.RespMsg{
+		Code: int(cmn.StatusOK),
+		Msg:  "登录成昆",
+		Data: struct {
+			Location string
+			Username string
+			Token    string
+		}{
+			Location: "/static/view/home.html",
+			Username: username,
+			Token:    rpcResp.Token,
+		},
+	}
+	c.Data(http.StatusOK, "application/json", cliResp.JSONBytes())
 }
