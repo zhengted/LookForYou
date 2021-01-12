@@ -16,11 +16,12 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucas-clemente/quic-go v0.14.1 // indirect
-	github.com/micro/go-micro v1.16.0
+	github.com/micro/go-micro v1.18.0
+	github.com/micro/go-plugins/registry/consul v0.0.0-20200119172437-4fe21aa238fd
 	github.com/miekg/dns v1.1.27 // indirect
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/procfs v0.0.5 // indirect
 	//github.com/micro/go-micro/v2 v2.4.1-0.20200415105401-9961ebb46e7b
 	github.com/streadway/amqp v1.0.0
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20200122045848-3419fae592fc // indirect
