@@ -1,6 +1,6 @@
 syntax="proto3";
 
-package proto;
+package go.micro.service.user;
 
 service UserService {
   // 用户注册

@@ -4,7 +4,7 @@ import (
 	"LookForYou/common"
 	cfg "LookForYou/config"
 	dblayer "LookForYou/db"
-	"LookForYou/service/account/proto"
+	proto "LookForYou/service/account/proto"
 	"LookForYou/util"
 	"context"
 	"errors"
